@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Paneer Butter Masala",
+    "price": 180,
+    "description": "Paneer cooked in a rich buttery tomato gravy",
+    "stock": 20,
+    "isVeg": true,
+    "ratings": 4.5,
+    "images": [
+      {
+        "public_id": "paneer-butter-masala",
+        "url": "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+    "name": "Masala Dosa",
+    "price": 100,
+    "description": "Crispy South Indian dosa served with chutney and sambar",
+    "stock": 30,
+    "isVeg": true,
+    "ratings": 4.6,
+    "images": [
+      {
+        "public_id": "masala-dosa",
+        "url": "https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+    "name": "Veg Biryani",
+    "price": 160,
+    "description": "Aromatic basmati rice cooked with vegetables and spices",
+    "stock": 25,
+    "isVeg": true,
+    "ratings": 4.3,
+    "images": [
+      {
+        "public_id": "veg-biryani",
+        "url": "https://images.unsplash.com/photo-1599043513900-ed6fe01d3833?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+  "name": "Chicken Biryani",
+  "price": 220,
+  "description": "Fragrant basmati rice cooked with tender chicken and spices",
+  "stock": 25,
+  "isVeg": false,
+  "ratings": 4.5,
+  "images": [
+    {
+      "public_id": "chicken-biryani",
+      "url": "https://commons.wikimedia.org/wiki/Special:Redirect/file/Chicken_Biryani.jpg"
+    }
+  ],
+  "reviews": []
+},
+  {
+    "name": "Idli Sambar",
+    "price": 80,
+    "description": "Soft steamed idlis served with hot sambar and chutney",
+    "stock": 35,
+    "isVeg": true,
+    "ratings": 4.4,
+    "images": [
+      {
+        "public_id": "idli-sambar",
+        "url": "https://images.unsplash.com/photo-1589301760014-d929f3979dbc?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+    "name": "Veg Fried Rice",
+    "price": 140,
+    "description": "Fried rice prepared with fresh vegetables and sauces",
+    "stock": 20,
+    "isVeg": true,
+    "ratings": 4.2,
+    "images": [
+      {
+        "public_id": "veg-fried-rice",
+        "url": "https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+    "name": "Margherita Pizza",
+    "price": 200,
+    "description": "Classic pizza topped with tomato, mozzarella and basil",
+    "stock": 15,
+    "isVeg": true,
+    "ratings": 4.4,
+    "images": [
+      {
+        "public_id": "margherita-pizza",
+        "url": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  },
+  {
+    "name": "French Fries",
+    "price": 90,
+    "description": "Crispy golden potato fries",
+    "stock": 40,
+    "isVeg": true,
+    "ratings": 4.1,
+    "images": [
+      {
+        "public_id": "french-fries",
+        "url": "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=500&auto=format&fit=crop"
+      }
+    ],
+    "reviews": []
+  }
+]

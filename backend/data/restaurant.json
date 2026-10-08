@@ -1,0 +1,182 @@
+[
+  {
+    "name": "Spice Garden",
+    "isVeg": true,
+    "address": "MG Road, Bengaluru",
+    "ratings": 4.5,
+    "numOfReviews": 120,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.5946, 12.9716]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "spice-garden",
+        "url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4"
+      }
+    ]
+  },
+  {
+    "name": "Bengaluru Bites",
+    "isVeg": false,
+    "address": "Indiranagar, Bengaluru",
+    "ratings": 4.2,
+    "numOfReviews": 95,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.6408, 12.9784]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "bengaluru-bites",
+        "url": "https://images.unsplash.com/photo-1555396273-367ea4eb4db5"
+      }
+    ]
+  },
+  {
+    "name": "Green Leaf Restaurant",
+    "isVeg": true,
+    "address": "Jayanagar, Bengaluru",
+    "ratings": 4.7,
+    "numOfReviews": 150,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.5937, 12.9250]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "green-leaf",
+        "url": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f"
+      }
+    ]
+  },
+  {
+    "name": "Urban Spice",
+    "isVeg": false,
+    "address": "Koramangala, Bengaluru",
+    "ratings": 4.4,
+    "numOfReviews": 110,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.6245, 12.9352]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "urban-spice",
+        "url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4"
+      }
+    ]
+  },
+  {
+    "name": "South Indian Kitchen",
+    "isVeg": true,
+    "address": "Malleshwaram, Bengaluru",
+    "ratings": 4.6,
+    "numOfReviews": 180,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.5713, 13.0035]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "south-indian-kitchen",
+        "url": "https://images.unsplash.com/photo-1601050690597-df0568f70950"
+      }
+    ]
+  },
+  {
+    "name": "Food Junction",
+    "isVeg": false,
+    "address": "Whitefield, Bengaluru",
+    "ratings": 4.1,
+    "numOfReviews": 75,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.7500, 12.9698]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "food-junction",
+        "url": "https://images.unsplash.com/photo-1513104890138-7c749659a591"
+      }
+    ]
+  },
+  {
+    "name": "Tasty Corner",
+    "isVeg": true,
+    "address": "Rajajinagar, Bengaluru",
+    "ratings": 4.3,
+    "numOfReviews": 88,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.5530, 12.9916]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "tasty-corner",
+        "url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836"
+      }
+    ]
+  },
+  {
+    "name": "Royal Treat",
+    "isVeg": false,
+    "address": "HSR Layout, Bengaluru",
+    "ratings": 4.5,
+    "numOfReviews": 130,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.6387, 12.9116]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "royal-treat",
+        "url": "https://images.unsplash.com/photo-1552566626-52f8b828add9"
+      }
+    ]
+  },
+  {
+    "name": "Pure Veg Palace",
+    "isVeg": true,
+    "address": "Basavanagudi, Bengaluru",
+    "ratings": 4.8,
+    "numOfReviews": 210,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.5738, 12.9421]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "pure-veg-palace",
+        "url": "https://images.unsplash.com/photo-1547592180-85f173990554"
+      }
+    ]
+  },
+  {
+    "name": "The Food Hub",
+    "isVeg": false,
+    "address": "Electronic City, Bengaluru",
+    "ratings": 4.0,
+    "numOfReviews": 65,
+    "location": {
+      "type": "Point",
+      "coordinates": [77.6700, 12.8452]
+    },
+    "reviews": [],
+    "images": [
+      {
+        "public_id": "the-food-hub",
+        "url": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f"
+      }
+    ]
+  }
+]
