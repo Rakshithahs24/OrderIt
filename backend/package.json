@@ -1,12 +1,13 @@
+
 {
   "name": "orderit",
   "version": "1.0.0",
-  "description": "Food Ordering Website using MERN Stack.This website is created for particular restaurant i.e Zyka.",
+  "description": "Food Ordering Website using MERN Stack",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon backend/server.js",
-    "dev": "SET NODE_ENV=DEVELOPMENT& nodemon server",
-    "prod": "SET NODE_ENV=PRODUCTION& nodemon backend/server",
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "prod": "node server.js",
     "seeder": "node utils/seeder.js"
   },
   "author": "Richa",
@@ -34,6 +35,5 @@
     "validator": "^13.9.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
-  }
+    "nodemon": "^2.0.22"  }
 }

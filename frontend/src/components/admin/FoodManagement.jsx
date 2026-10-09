@@ -47,16 +47,9 @@ const FoodManagement = () => {
       );
 
       // Keep the existing display behavior: show one card per food name.
-      const uniqueItems = items.filter(
-        (food, index, allItems) =>
-          allItems.findIndex(
-            (item) =>
-              item.name.trim().toLowerCase() ===
-              food.name.trim().toLowerCase()
-          ) === index
-      );
+      
 
-      setFoodItems(uniqueItems);
+      setFoodItems(items);
     } catch (err) {
       console.error("Failed to fetch food items:", err);
       setError(
