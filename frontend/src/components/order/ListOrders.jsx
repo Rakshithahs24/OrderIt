@@ -1,23 +1,25 @@
+
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import DataTableModule from "react-data-table-component";
 
-const DataTable = DataTableModule.default || DataTableModule;
-
 import Loader from "../layout/Loader";
-
-import { getRestaurants } from "../../redux/actions/restaurantAction";
 import { myOrders } from "../../redux/actions/orderActions";
+import { getRestaurants } from "../../redux/actions/restaurantAction";
 import { clearErrors } from "../../redux/slices/orderSlice";
 
 import "./ListOrders.css";
 
+const DataTable = DataTableModule.default || DataTableModule;
+
 const ListOrders = () => {
   const dispatch = useDispatch();
 
-  const { loading, error, orders } = useSelector((state) => state.order);
+  const { loading, error, orders } = useSelector(
+    (state) => state.order
+  );
 
   useEffect(() => {
     dispatch(myOrders());
@@ -31,7 +33,6 @@ const ListOrders = () => {
     }
   }, [error, dispatch]);
 
-  // Columns
   const columns = [
     {
       name: "Restaurant",
@@ -53,7 +54,7 @@ const ListOrders = () => {
       cell: (row) => (
         <span
           className={
-            row.status.includes("Delivered")
+            row.status === "Delivered"
               ? "status-delivered"
               : "status-pending"
           }
@@ -71,23 +72,26 @@ const ListOrders = () => {
     {
       name: "Action",
       cell: (row) => (
-        <Link to={`/eats/orders/${row.id}`} className="btn btn-primary btn-sm">
+        <Link
+          to={`/eats/orders/${row.id}`}
+          className="btn btn-primary btn-sm"
+        >
           View
         </Link>
       ),
     },
   ];
 
-  // Data
-  const data =
-    orders?.map((order) => ({
-      id: order._id,
-      restaurant: order.restaurant?.name || "Unknown",
-      items: order.orderItems.length,
-      amount: `₹${order.finalTotal}`,
-      status: order.orderStatus,
-      date: new Date(order.createdAt).toLocaleDateString(),
-    })) || [];
+  const data = (orders || []).map((order) => ({
+    id: order._id,
+    restaurant: order.restaurant?.name || "Unknown",
+    items: order.orderItems?.length || 0,
+    amount: `₹${order.finalTotal ?? 0}`,
+    status: order.orderStatus || "Processing",
+    date: order.createdAt
+      ? new Date(order.createdAt).toLocaleDateString()
+      : "N/A",
+  }));
 
   return (
     <div className="list-orders-container">
@@ -104,13 +108,13 @@ const ListOrders = () => {
           striped
           responsive
           customStyles={customStyles}
+          noDataComponent="There are no records to display"
         />
       )}
     </div>
   );
 };
 
-// ✅ Custom styling
 const customStyles = {
   headCells: {
     style: {

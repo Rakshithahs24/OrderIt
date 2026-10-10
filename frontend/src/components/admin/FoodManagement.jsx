@@ -45,6 +45,24 @@ const FoodManagement = () => {
             restaurantList[index]?.name || "Unknown restaurant",
         }))
       );
+      console.log(
+  "Restaurant requests:",
+  restaurantList.map((r) => r.name)
+);
+
+console.log(
+  "Food count:",
+  items.length,
+  "Unique food IDs:",
+  new Set(items.map((food) => food._id)).size
+);
+console.table(
+  items.map((food) => ({
+    name: food.name,
+    id: food._id,
+    restaurant: food.restaurantName,
+  }))
+);
 
       // Keep the existing display behavior: show one card per food name.
       

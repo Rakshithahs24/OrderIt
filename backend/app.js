@@ -23,10 +23,18 @@ app.use(
 // ===============================
 // Middleware
 // ===============================
-app.use(express.json({ limit: "30kb" }));
-app.use(bodyParser.urlencoded({ extended: true, limit: "30kb" }));
+app.use(express.json({ limit: "10mb" }));
+app.use(bodyParser.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
-app.use(fileUpload());
+
+app.use(
+  fileUpload({
+    useTempFiles: true,
+    tempFileDir: "/tmp/",
+    createParentPath: true,
+  })
+);
+
 
 // ===============================
 // Import Routes

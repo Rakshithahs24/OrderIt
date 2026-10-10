@@ -1,3 +1,4 @@
+
 const catchAsyncErrors = require("../middlewares/catchAsyncErrors");
 const ErrorHandler = require("../utils/errorHandler");
 const User = require("../models/user");
@@ -5,73 +6,52 @@ const sendToken = require("../utils/sendToken");
 const jwt = require("jsonwebtoken");
 const Email = require("../utils/email");
 const crypto = require("crypto");
+const cloudinary = require("../config/cloudinary");
 
 // =====================================================
 // LOGIN
 // =====================================================
-
 exports.login = catchAsyncErrors(async (req, res, next) => {
   const { email, password } = req.body;
 
-  console.log("========== LOGIN DEBUG ==========");
-  console.log("Email received:", email);
-  console.log("Password received:", password ? "YES" : "NO");
-
-  // Check email and password
   if (!email || !password) {
     return next(
       new ErrorHandler("Please enter email & password", 400)
     );
   }
 
-  // Find user and include password
   const user = await User.findOne({ email }).select("+password");
 
-  console.log("User found:", !!user);
-
   if (!user) {
-    console.log("LOGIN FAILED: USER NOT FOUND");
-
     return next(
       new ErrorHandler("Invalid Email or Password", 401)
     );
   }
 
-  // Compare password
   const isPasswordMatched = await user.correctPassword(
     password,
     user.password
   );
 
-  console.log("Password matched:", isPasswordMatched);
-
   if (!isPasswordMatched) {
-    console.log("LOGIN FAILED: PASSWORD DOES NOT MATCH");
-
     return next(
       new ErrorHandler("Invalid Email or Password", 401)
     );
   }
 
-  console.log("LOGIN SUCCESS");
-
-  // Send JWT token
   sendToken(user, 200, res);
 });
 
 // =====================================================
 // PROTECT ROUTES
 // =====================================================
-
 exports.protect = catchAsyncErrors(async (req, res, next) => {
   let token;
 
-  // Get token from cookie
   if (req.cookies && req.cookies.jwt) {
     token = req.cookies.jwt;
   }
 
-  // If no token
   if (!token) {
     return next(
       new ErrorHandler(
@@ -81,13 +61,7 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
-  // Verify token
-  const decoded = jwt.verify(
-    token,
-    process.env.JWT_SECRET
-  );
-
-  // Find user
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const user = await User.findById(decoded.id);
 
   if (!user) {
@@ -96,7 +70,6 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
-  // Check whether password was changed
   if (user.changedPasswordAfter(decoded.iat)) {
     return next(
       new ErrorHandler(
@@ -106,16 +79,13 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
-  // Store user in request
   req.user = user;
-
   next();
 });
 
 // =====================================================
 // SIGNUP
 // =====================================================
-
 exports.signup = catchAsyncErrors(async (req, res, next) => {
   const {
     name,
@@ -125,7 +95,6 @@ exports.signup = catchAsyncErrors(async (req, res, next) => {
     phoneNumber,
   } = req.body;
 
-  // Check required fields
   if (
     !name ||
     !email ||
@@ -134,24 +103,16 @@ exports.signup = catchAsyncErrors(async (req, res, next) => {
     !phoneNumber
   ) {
     return next(
-      new ErrorHandler(
-        "Please enter all required fields",
-        400
-      )
+      new ErrorHandler("Please enter all required fields", 400)
     );
   }
 
-  // Check password confirmation
   if (password !== passwordConfirm) {
     return next(
-      new ErrorHandler(
-        "Passwords do not match",
-        400
-      )
+      new ErrorHandler("Passwords do not match", 400)
     );
   }
 
-  // Check existing user
   const existingUser = await User.findOne({ email });
 
   if (existingUser) {
@@ -163,55 +124,70 @@ exports.signup = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
-  // Create user
-  const user = await User.create({
+  const userData = {
     name,
     email,
     password,
     passwordConfirm,
     phoneNumber,
-  });
+  };
 
-  // Login user after signup
+  // Get the uploaded avatar, if present.
+  const avatarFile = req.files?.avatar;
+
+  console.log("Avatar received:", !!avatarFile);
+
+  if (avatarFile) {
+    if (!avatarFile.mimetype?.startsWith("image/")) {
+      return next(
+        new ErrorHandler("Please upload a valid image file", 400)
+      );
+    }
+
+    if (!avatarFile.tempFilePath) {
+      return next(
+        new ErrorHandler(
+          "Avatar temporary file is unavailable. Check file-upload middleware.",
+          400
+        )
+      );
+    }
+
+    const result = await cloudinary.uploader.upload(
+      avatarFile.tempFilePath,
+      {
+        folder: "OrderIt/avatars",
+        resource_type: "image",
+      }
+    );
+
+    userData.avatar = {
+      public_id: result.public_id,
+      url: result.secure_url,
+    };
+  }
+
+  const user = await User.create(userData);
+
   sendToken(user, 201, res);
 });
 
 // =====================================================
 // FORGOT PASSWORD
 // =====================================================
-
 exports.forgotPassword = catchAsyncErrors(
   async (req, res, next) => {
-    console.log(
-      "========== FORGOT PASSWORD DEBUG =========="
-    );
-
     const { email } = req.body;
 
-    console.log("Email received:", email);
-
-    // Check email
     if (!email) {
-      console.log("NO EMAIL");
-
       return next(
-        new ErrorHandler(
-          "Please enter your email",
-          400
-        )
+        new ErrorHandler("Please enter your email", 400)
       );
     }
 
-    console.log("Finding user...");
-
-    // Find user
     const user = await User.findOne({ email });
 
-    console.log("User found:", !!user);
-
     if (!user) {
-      console.log("USER NOT FOUND");
-
       return next(
         new ErrorHandler(
           "There is no user with this email",
@@ -220,54 +196,28 @@ exports.forgotPassword = catchAsyncErrors(
       );
     }
 
-    console.log("Creating reset token...");
+    const resetToken = user.createPasswordResetToken();
 
-    // Create reset token
-    const resetToken =
-      user.createPasswordResetToken();
+    await user.save({ validateBeforeSave: false });
 
-    console.log("Reset token created");
-
-    // Save reset token
-    await user.save({
-      validateBeforeSave: false,
-    });
-
-    console.log("User saved with reset token");
-
-    // Create reset URL
     const resetURL = `${
-      process.env.FRONTEND_URL ||
-      "http://localhost:5173"
+      process.env.FRONTEND_URL || "http://localhost:5173"
     }/password/reset/${resetToken}`;
 
-    console.log("RESET URL:", resetURL);
-
     try {
-      console.log("Sending reset email...");
-
-      // Send reset email
-      await new Email(
-        user,
-        resetURL
-      ).sendPasswordReset();
-
-      console.log("RESET EMAIL SENT");
+      await new Email(user, resetURL).sendPasswordReset();
 
       return res.status(200).json({
         success: true,
         message: "Token sent to email",
       });
     } catch (err) {
-      console.log("EMAIL ERROR:", err);
-
-      // Remove reset token if email fails
       user.passwordResetToken = undefined;
       user.passwordResetExpires = undefined;
 
-      await user.save({
-        validateBeforeSave: false,
-      });
+      await user.save({ validateBeforeSave: false });
+
+      console.error("Password reset email failed:", err.message);
 
       return next(
         new ErrorHandler(
@@ -282,22 +232,16 @@ exports.forgotPassword = catchAsyncErrors(
 // =====================================================
 // RESET PASSWORD
 // =====================================================
-
 exports.resetPassword = catchAsyncErrors(
   async (req, res, next) => {
-
-    // Hash token from URL
     const hashedToken = crypto
       .createHash("sha256")
       .update(req.params.token)
       .digest("hex");
 
-    // Find user with valid token
     const user = await User.findOne({
       passwordResetToken: hashedToken,
-      passwordResetExpires: {
-        $gt: Date.now(),
-      },
+      passwordResetExpires: { $gt: Date.now() },
     });
 
     if (!user) {
@@ -309,12 +253,8 @@ exports.resetPassword = catchAsyncErrors(
       );
     }
 
-    const {
-      password,
-      passwordConfirm,
-    } = req.body;
+    const { password, passwordConfirm } = req.body;
 
-    // Check passwords
     if (!password || !passwordConfirm) {
       return next(
         new ErrorHandler(
@@ -324,28 +264,19 @@ exports.resetPassword = catchAsyncErrors(
       );
     }
 
-    // Check password confirmation
     if (password !== passwordConfirm) {
       return next(
-        new ErrorHandler(
-          "Passwords do not match",
-          400
-        )
+        new ErrorHandler("Passwords do not match", 400)
       );
     }
 
-    // Set new password
     user.password = password;
     user.passwordConfirm = passwordConfirm;
-
-    // Remove reset token
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
 
-    // Save user
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
 
-    // Login user with new password
     sendToken(user, 200, res);
   }
 );
@@ -353,7 +284,6 @@ exports.resetPassword = catchAsyncErrors(
 // =====================================================
 // LOGOUT
 // =====================================================
-
 exports.logout = (req, res) => {
   res.cookie("jwt", null, {
     expires: new Date(Date.now()),
@@ -369,13 +299,15 @@ exports.logout = (req, res) => {
 // =====================================================
 // GET CURRENT USER PROFILE
 // =====================================================
-
 exports.getUserProfile = catchAsyncErrors(
   async (req, res, next) => {
+    const user = await User.findById(req.user.id);
 
-    const user = await User.findById(
-      req.user.id
-    );
+    if (!user) {
+      return next(
+        new ErrorHandler("User not found", 404)
+      );
+    }
 
     res.status(200).json({
       success: true,
@@ -387,14 +319,16 @@ exports.getUserProfile = catchAsyncErrors(
 // =====================================================
 // UPDATE PASSWORD
 // =====================================================
-
 exports.updatePassword = catchAsyncErrors(
   async (req, res, next) => {
+    const user = await User.findById(req.user.id)
+      .select("+password");
 
-    // Get current user with password
-    const user = await User.findById(
-      req.user.id
-    ).select("+password");
+    if (!user) {
+      return next(
+        new ErrorHandler("User not found", 404)
+      );
+    }
 
     const {
       currentPassword,
@@ -402,7 +336,6 @@ exports.updatePassword = catchAsyncErrors(
       passwordConfirm,
     } = req.body;
 
-    // Check fields
     if (
       !currentPassword ||
       !newPassword ||
@@ -416,12 +349,10 @@ exports.updatePassword = catchAsyncErrors(
       );
     }
 
-    // Check current password
-    const isPasswordMatched =
-      await user.correctPassword(
-        currentPassword,
-        user.password
-      );
+    const isPasswordMatched = await user.correctPassword(
+      currentPassword,
+      user.password
+    );
 
     if (!isPasswordMatched) {
       return next(
@@ -432,7 +363,6 @@ exports.updatePassword = catchAsyncErrors(
       );
     }
 
-    // Check new password confirmation
     if (newPassword !== passwordConfirm) {
       return next(
         new ErrorHandler(
@@ -442,14 +372,11 @@ exports.updatePassword = catchAsyncErrors(
       );
     }
 
-    // Set new password
     user.password = newPassword;
     user.passwordConfirm = passwordConfirm;
 
-    // Save user
     await user.save();
 
-    // Login again
     sendToken(user, 200, res);
   }
 );
@@ -457,48 +384,101 @@ exports.updatePassword = catchAsyncErrors(
 // =====================================================
 // UPDATE PROFILE
 // =====================================================
-
 exports.updateProfile = catchAsyncErrors(
   async (req, res, next) => {
+    const { name, email, phoneNumber } = req.body;
 
-    const {
-      name,
-      email,
-      phoneNumber,
-    } = req.body;
+    const updateData = {};
 
-    const user = await User.findById(
-      req.user.id
-    );
+    if (name !== undefined && name.trim() !== "") {
+      updateData.name = name.trim();
+    }
+
+    if (email !== undefined && email.trim() !== "") {
+      updateData.email = email.trim();
+    }
+
+    if (
+      phoneNumber !== undefined &&
+      phoneNumber.trim() !== ""
+    ) {
+      updateData.phoneNumber = phoneNumber.trim();
+    }
+
+    const user = await User.findById(req.user.id);
 
     if (!user) {
       return next(
-        new ErrorHandler(
-          "User not found",
-          404
-        )
+        new ErrorHandler("User not found", 404)
       );
     }
 
-    // Update fields
-    if (name) {
-      user.name = name;
+    // Upload a new avatar if one was selected.
+    const avatarFile = req.files?.avatar;
+
+    if (avatarFile) {
+      if (!avatarFile.mimetype?.startsWith("image/")) {
+        return next(
+          new ErrorHandler(
+            "Please upload a valid image file",
+            400
+          )
+        );
+      }
+
+      if (!avatarFile.tempFilePath) {
+        return next(
+          new ErrorHandler(
+            "Avatar temporary file is unavailable",
+            400
+          )
+        );
+      }
+
+      const result = await cloudinary.uploader.upload(
+        avatarFile.tempFilePath,
+        {
+          folder: "OrderIt/avatars",
+          resource_type: "image",
+        }
+      );
+
+      updateData.avatar = {
+        public_id: result.public_id,
+        url: result.secure_url,
+      };
     }
 
-    if (email) {
-      user.email = email;
-    }
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-    if (phoneNumber) {
-      user.phoneNumber = phoneNumber;
+    // Delete the previous Cloudinary image after saving the new one.
+    if (
+      updateData.avatar &&
+      user.avatar &&
+      user.avatar.public_id
+    ) {
+      try {
+        await cloudinary.uploader.destroy(
+          user.avatar.public_id
+        );
+      } catch (error) {
+        console.error(
+          "Old avatar cleanup failed:",
+          error.message
+        );
+      }
     }
-
-    // Save user
-    await user.save();
 
     res.status(200).json({
       success: true,
-      user,
+      user: updatedUser,
     });
   }
 );
@@ -506,7 +486,6 @@ exports.updateProfile = catchAsyncErrors(
 // =====================================================
 // GET USER COUNT - ADMIN DASHBOARD
 // =====================================================
-
 exports.getUserCount = catchAsyncErrors(
   async (req, res, next) => {
     const count = await User.countDocuments();
