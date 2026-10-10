@@ -284,10 +284,15 @@ exports.resetPassword = catchAsyncErrors(
 // =====================================================
 // LOGOUT
 // =====================================================
+
 exports.logout = (req, res) => {
-  res.cookie("jwt", null, {
-    expires: new Date(Date.now()),
+  const isProduction = process.env.NODE_ENV === "production";
+
+  res.cookie("jwt", "", {
+    expires: new Date(0),
     httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "none" : "lax",
   });
 
   res.status(200).json({
@@ -295,6 +300,7 @@ exports.logout = (req, res) => {
     message: "Logged out successfully",
   });
 };
+
 
 // =====================================================
 // GET CURRENT USER PROFILE
