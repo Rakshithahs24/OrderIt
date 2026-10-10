@@ -45,13 +45,25 @@ exports.login = catchAsyncErrors(async (req, res, next) => {
 // =====================================================
 // PROTECT ROUTES
 // =====================================================
+
 exports.protect = catchAsyncErrors(async (req, res, next) => {
   let token;
 
+  // 1. Check the JWT cookie first
   if (req.cookies && req.cookies.jwt) {
     token = req.cookies.jwt;
   }
 
+  // 2. If there is no cookie, check the Authorization header
+  if (
+    !token &&
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer ")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
+  }
+
+  // 3. If neither token exists, reject the request
   if (!token) {
     return next(
       new ErrorHandler(
@@ -61,7 +73,10 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
+  // 4. Verify the token
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+  // 5. Find the user
   const user = await User.findById(decoded.id);
 
   if (!user) {
@@ -70,6 +85,7 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
+  // 6. Check whether the password changed after token creation
   if (user.changedPasswordAfter(decoded.iat)) {
     return next(
       new ErrorHandler(
@@ -79,9 +95,11 @@ exports.protect = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
+  // 7. Attach the user to the request
   req.user = user;
   next();
 });
+
 
 // =====================================================
 // SIGNUP
