@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -8,21 +9,21 @@ import { toast } from "react-toastify";
 const OrderSuccess = () => {
   const location = useLocation();
   const dispatch = useDispatch();
+  const hasCalled = useRef(false);
 
-  const hasCalled = useRef(false); //prevent double call
-
-  const { error, order } = useSelector((state) => state.order);
+  const { loading, error, order } = useSelector(
+    (state) => state.order
+  );
 
   const searchParams = new URLSearchParams(location.search);
-  const session_id = searchParams.get("session_id");
-console.log("Stripe session ID present:", Boolean(session_id));
+  const sessionId = searchParams.get("session_id");
+
   useEffect(() => {
-    if (!session_id || hasCalled.current) return;
+    if (!sessionId || hasCalled.current) return;
 
     hasCalled.current = true;
-
-    dispatch(createOrder(session_id));
-  }, [dispatch, session_id]);
+    dispatch(createOrder(sessionId));
+  }, [dispatch, sessionId]);
 
   useEffect(() => {
     if (order) {
@@ -37,32 +38,36 @@ console.log("Stripe session ID present:", Boolean(session_id));
     }
   }, [order, error, dispatch]);
 
-  return (
-    <div className="row justify-content-center">
-      <div className="col-6 mt-5 text-center">
-        <svg
-          className="checkmark"
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 52 52"
-        >
-          <circle
-            className="checkmark__circle"
-            cx="26"
-            cy="26"
-            r="25"
-            fill="none"
-          />
-          <path
-            className="checkmark__check"
-            fill="none"
-            d="M14.1 27.2l7.1 7.2 16.7-16.8"
-          />
-        </svg>
-
-        <h2>Your Order has been placed successfully.</h2>
-
-        <Link to="/eats/orders/me/myOrders">Go to Orders</Link>
+  if (!sessionId) {
+    return (
+      <div className="container text-center mt-5">
+        <h2>Unable to confirm your order</h2>
+        <p>
+          The Stripe session ID is missing. Please check My Orders
+          before attempting payment again.
+        </p>
+        <Link to="/eats/orders/me/myOrders">Check My Orders</Link>
       </div>
+    );
+  }
+
+  return (
+    <div className="container text-center mt-5">
+      {loading ? (
+        <h2>Confirming your order...</h2>
+      ) : error ? (
+        <>
+          <h2>We couldn't confirm your order</h2>
+          <Link to="/eats/orders/me/myOrders">Check My Orders</Link>
+        </>
+      ) : order ? (
+        <>
+          <h2>Your order has been placed successfully.</h2>
+          <Link to="/eats/orders/me/myOrders">Go to Orders</Link>
+        </>
+      ) : (
+        <h2>Confirming your order...</h2>
+      )}
     </div>
   );
 };
