@@ -15,7 +15,7 @@ const OrderSuccess = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const session_id = searchParams.get("session_id");
-
+console.log("Stripe session ID present:", Boolean(session_id));
   useEffect(() => {
     if (!session_id || hasCalled.current) return;
 
