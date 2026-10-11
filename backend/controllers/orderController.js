@@ -15,7 +15,13 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 // => /api/v1/order/new
 // ==================================================
 exports.newOrder = catchAsyncErrors(async (req, res, next) => {
-  const { session_id } = req.body;
+  
+const { session_id } = req.body;
+
+console.log("NEW ORDER REQUEST RECEIVED");
+console.log("Session ID present:", Boolean(session_id));
+console.log("User ID:", req.user?._id);
+
 
   const session = await stripe.checkout.sessions.retrieve(session_id, {
     expand: ["customer"],
