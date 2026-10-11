@@ -15,8 +15,7 @@ import {
   orderDetailsSuccess,
   orderDetailsFail,
 } from "../slices/orderSlice";
-
-// Create order
+ // Create order
 export const createOrder = (session_id) => async (dispatch) => {
   try {
     dispatch(createOrderRequest());
@@ -33,13 +32,20 @@ export const createOrder = (session_id) => async (dispatch) => {
 
     dispatch(createOrderSuccess(data));
   } catch (error) {
+    console.error("Create order failed:", error);
+    console.error("Response status:", error.response?.status);
+    console.error("Response data:", error.response?.data);
+
     dispatch(
       createOrderFail(
-        error.response?.data?.message || "Failed to create order"
+        error.response?.data?.errMessage ||
+          error.response?.data?.message ||
+          "Failed to create order"
       )
     );
   }
 };
+
 
 // Payment
 export const payment = (items, restaurant) => async (dispatch) => {
