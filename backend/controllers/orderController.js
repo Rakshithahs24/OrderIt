@@ -26,6 +26,10 @@ console.log("User ID:", req.user?._id);
   const session = await stripe.checkout.sessions.retrieve(session_id, {
     expand: ["customer"],
   });
+  console.log("Stripe session retrieved:", session.id);
+console.log("Stripe payment status:", session.payment_status);
+console.log("Shipping details present:", Boolean(session.shipping_details));
+console.log("Customer details present:", Boolean(session.customer_details));
 
   const cart = await Cart.findOne({ user: req.user._id })
     .populate({
