@@ -10,6 +10,7 @@ const OrderSuccess = () => {
   const location = useLocation();
   const dispatch = useDispatch();
   const hasCalled = useRef(false);
+  const toastShown = useRef(false);
 
   const { loading, error, order } = useSelector(
     (state) => state.order
@@ -17,6 +18,10 @@ const OrderSuccess = () => {
 
   const searchParams = new URLSearchParams(location.search);
   const sessionId = searchParams.get("session_id");
+
+  // Diagnostic information for troubleshooting.
+  console.log("Current success URL:", window.location.href);
+  console.log("Stripe session ID:", sessionId);
 
   useEffect(() => {
     if (!sessionId || hasCalled.current) return;
@@ -26,8 +31,9 @@ const OrderSuccess = () => {
   }, [dispatch, sessionId]);
 
   useEffect(() => {
-    if (order) {
-      toast.success("Order placed successfully 🎉", {
+    if (order && !toastShown.current) {
+      toastShown.current = true;
+      toast.success("Order placed successfully!", {
         position: "bottom-right",
       });
     }
@@ -43,10 +49,12 @@ const OrderSuccess = () => {
       <div className="container text-center mt-5">
         <h2>Unable to confirm your order</h2>
         <p>
-          The Stripe session ID is missing. Please check My Orders
-          before attempting payment again.
+          The Stripe session ID is missing from this URL.
+          Check My Orders before attempting payment again.
         </p>
-        <Link to="/eats/orders/me/myOrders">Check My Orders</Link>
+        <Link to="/eats/orders/me/myOrders">
+          Check My Orders
+        </Link>
       </div>
     );
   }
@@ -58,12 +66,17 @@ const OrderSuccess = () => {
       ) : error ? (
         <>
           <h2>We couldn't confirm your order</h2>
-          <Link to="/eats/orders/me/myOrders">Check My Orders</Link>
+          <p>{error}</p>
+          <Link to="/eats/orders/me/myOrders">
+            Check My Orders
+          </Link>
         </>
       ) : order ? (
         <>
-          <h2>Your order has been placed successfully.</h2>
-          <Link to="/eats/orders/me/myOrders">Go to Orders</Link>
+          <h2>Your order has been placed successfully!</h2>
+          <Link to="/eats/orders/me/myOrders">
+            Go to My Orders
+          </Link>
         </>
       ) : (
         <h2>Confirming your order...</h2>
