@@ -6,19 +6,32 @@ dotenv.config({ path: "./config/config.env" });
 
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
-// Create Stripe Checkout session
+// ==================================================
+// CREATE STRIPE CHECKOUT SESSION
+// => /api/v1/payment/process
+// ==================================================
 exports.processPayment = catchAsyncErrors(async (req, res, next) => {
   console.log("PAYMENT REQUEST RECEIVED");
-  console.log("User email present:", Boolean(req.user?.email));
+  console.log("User authenticated:", Boolean(req.user?._id));
   console.log("Cart items count:", req.body.items?.length);
 
-  if (!req.body.items || req.body.items.length === 0) {
+  // Verify user authentication
+  if (!req.user?._id || !req.user?.email) {
+    return res.status(401).json({
+      success: false,
+      message: "Please log in before making a payment.",
+    });
+  }
+
+  // Verify cart items
+  if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
     return res.status(400).json({
       success: false,
       message: "Your cart is empty.",
     });
   }
 
+  // Verify frontend URL
   if (!process.env.FRONTEND_URL) {
     return res.status(500).json({
       success: false,
@@ -26,23 +39,47 @@ exports.processPayment = catchAsyncErrors(async (req, res, next) => {
     });
   }
 
+  const frontendUrl = process.env.FRONTEND_URL.replace(/\/+$/, "");
+
+  // Create Stripe Checkout Session
   const session = await stripe.checkout.sessions.create({
     customer_email: req.user.email,
+
+    client_reference_id: req.user._id.toString(),
+
+    metadata: {
+      userId: req.user._id.toString(),
+    },
 
     phone_number_collection: {
       enabled: true,
     },
 
-    line_items: req.body.items.map((item) => ({
-      price_data: {
-        currency: "inr",
-        product_data: {
-          name: item.foodItem.name,
+    line_items: req.body.items.map((item) => {
+      const price = Number(item.foodItem?.price);
+      const quantity = Number(item.quantity);
+
+      if (
+        !item.foodItem?.name ||
+        !Number.isFinite(price) ||
+        price <= 0 ||
+        !Number.isInteger(quantity) ||
+        quantity < 1
+      ) {
+        throw new Error("Invalid item or quantity in checkout.");
+      }
+
+      return {
+        price_data: {
+          currency: "inr",
+          product_data: {
+            name: item.foodItem.name,
+          },
+          unit_amount: Math.round(price * 100),
         },
-        unit_amount: Math.round(Number(item.foodItem.price) * 100),
-      },
-      quantity: item.quantity,
-    })),
+        quantity,
+      };
+    }),
 
     mode: "payment",
 
@@ -60,20 +97,27 @@ exports.processPayment = catchAsyncErrors(async (req, res, next) => {
             currency: "inr",
           },
           delivery_estimate: {
-            minimum: { unit: "hour", value: 1 },
-            maximum: { unit: "hour", value: 3 },
+            minimum: {
+              unit: "hour",
+              value: 1,
+            },
+            maximum: {
+              unit: "hour",
+              value: 3,
+            },
           },
         },
       },
     ],
 
+    // Stripe replaces this placeholder with the actual session ID.
     success_url:
-      `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
+      `${frontendUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
 
-    cancel_url: `${process.env.FRONTEND_URL}/cart`,
+    cancel_url: `${frontendUrl}/cart`,
   });
 
-  // Diagnostic logs: never log secret keys or payment details.
+  // Safe diagnostic information; never log secret keys.
   console.log("Stripe session created:", Boolean(session.id));
   console.log("Stripe success URL:", session.success_url);
 
@@ -83,8 +127,18 @@ exports.processPayment = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-// Send Stripe publishable API key
+// ==================================================
+// SEND STRIPE PUBLISHABLE API KEY
+// => /api/v1/stripeapi
+// ==================================================
 exports.sendStripApi = catchAsyncErrors(async (req, res, next) => {
+  if (!process.env.STRIPE_API_KEY) {
+    return res.status(500).json({
+      success: false,
+      message: "Stripe publishable key is not configured.",
+    });
+  }
+
   return res.status(200).json({
     stripeApiKey: process.env.STRIPE_API_KEY,
   });
