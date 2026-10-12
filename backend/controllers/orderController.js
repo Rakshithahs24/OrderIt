@@ -1,4 +1,3 @@
-
 const Order = require("../models/order");
 const Cart = require("../models/cartModel");
 const { ObjectId } = require("mongodb");
@@ -19,10 +18,12 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
 
   console.log("NEW ORDER REQUEST RECEIVED");
   console.log("Session ID present:", Boolean(session_id));
-  console.log("User ID:", req.user?._id);
+  console.log("User ID:", req.user?._id?.toString());
 
   if (!session_id) {
-    return next(new ErrorHandler("Stripe session ID is required", 400));
+    return next(
+      new ErrorHandler("Stripe session ID is required", 400)
+    );
   }
 
   if (!req.user?._id) {
@@ -31,22 +32,58 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
-  // Retrieve the Checkout Session from Stripe
-  const session = await stripe.checkout.sessions.retrieve(session_id);
+  // 1. Retrieve the Stripe Checkout Session.
+  const session = await stripe.checkout.sessions.retrieve(
+    session_id,
+    { expand: ["line_items"] }
+  );
 
   console.log("Stripe session retrieved:", Boolean(session.id));
   console.log("Stripe payment status:", session.payment_status);
 
-  // Verify payment before creating an order
+  // 2. Confirm that the payment succeeded.
   if (session.payment_status !== "paid") {
     return next(
-      new ErrorHandler("Stripe payment has not been completed", 400)
+      new ErrorHandler(
+        "Stripe payment has not been completed",
+        400
+      )
     );
   }
 
-  // Prevent duplicate orders for the same Stripe payment
+  // 3. Verify the checkout belongs to the logged-in user.
+  const checkoutUserId =
+    session.metadata?.userId || session.client_reference_id;
+
+  if (
+    !checkoutUserId ||
+    checkoutUserId.toString() !== req.user._id.toString()
+  ) {
+    return next(
+      new ErrorHandler(
+        "Unable to verify the owner of this payment",
+        403
+      )
+    );
+  }
+
+  // 4. Prevent duplicate orders for the same Stripe payment.
+  const paymentIntentId =
+    typeof session.payment_intent === "string"
+      ? session.payment_intent
+      : session.payment_intent?.id;
+
+  if (!paymentIntentId) {
+    return next(
+      new ErrorHandler(
+        "Stripe payment reference is missing",
+        400
+      )
+    );
+  }
+
   const existingOrder = await Order.findOne({
-    "paymentInfo.id": session.payment_intent,
+    "paymentInfo.id": paymentIntentId,
   });
 
   if (existingOrder) {
@@ -56,18 +93,12 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
     });
   }
 
-  // Ensure the session belongs to this user if metadata is configured
-  if (
-    session.metadata?.userId &&
-    session.metadata.userId.toString() !== req.user._id.toString()
-  ) {
-    return next(
-      new ErrorHandler("This payment belongs to another user", 403)
-    );
-  }
-
-  // Get the logged-in user's cart
-  const cart = await Cart.findOne({ user: req.user._id })
+  // 5. Find the cart and restaurant.
+  // Keep the cart items populated so we can map them to the
+  // food-item IDs required by your existing order structure.
+  const cart = await Cart.findOne({
+    user: req.user._id,
+  })
     .populate({
       path: "items.foodItem",
       select: "name price images",
@@ -78,63 +109,121 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
     });
 
   if (!cart || !cart.items?.length || !cart.restaurant) {
-    return next(new ErrorHandler("Cart or restaurant not found", 404));
+    return next(
+      new ErrorHandler(
+        "Cart or restaurant not found. The order was not created.",
+        404
+      )
+    );
   }
 
-  // Obtain delivery address from Stripe
+  // 6. Obtain the delivery address from Stripe.
   const address =
     session.shipping_details?.address ||
     session.customer_details?.address;
 
   if (!address) {
     return next(
-      new ErrorHandler("Delivery address is missing from Stripe", 400)
+      new ErrorHandler(
+        "Delivery address is missing from Stripe",
+        400
+      )
     );
   }
 
   const deliveryInfo = {
-    address: [address.line1, address.line2].filter(Boolean).join(" "),
+    address: [address.line1, address.line2]
+      .filter(Boolean)
+      .join(" "),
     city: address.city || "",
     phoneNo: session.customer_details?.phone || "",
     postalCode: address.postal_code || "",
     country: address.country || "",
   };
 
-  // Prepare order items
-  const orderItems = cart.items.map((item) => {
-    if (!item.foodItem) {
-      throw new Error("A food item in your cart could not be found");
+  // 7. Check that Stripe returned purchased line items.
+  const stripeItems = session.line_items?.data || [];
+
+  if (!stripeItems.length) {
+    return next(
+      new ErrorHandler(
+        "No purchased items found in Stripe session",
+        400
+      )
+    );
+  }
+
+  // 8. Match the Stripe items with the cart items.
+  // Stripe product names are compared with cart food-item names.
+  // If any item cannot be matched, stop rather than save an
+  // incomplete or incorrect order.
+  const orderItems = [];
+
+  for (const stripeItem of stripeItems) {
+    const cartItem = cart.items.find(
+      (item) =>
+        item.foodItem &&
+        item.foodItem.name === stripeItem.description
+    );
+
+    if (!cartItem) {
+      return next(
+        new ErrorHandler(
+          `Could not match purchased item "${stripeItem.description}" with the cart`,
+          400
+        )
+      );
     }
 
-    return {
-      name: item.foodItem.name,
-      quantity: item.quantity,
-      image: item.foodItem.images?.[0]?.url || "",
-      price: item.foodItem.price,
-      fooditem: item.foodItem._id,
-    };
-  });
+    if (
+      Number(cartItem.quantity) !== Number(stripeItem.quantity)
+    ) {
+      return next(
+        new ErrorHandler(
+          `Quantity mismatch for "${stripeItem.description}". The order was not created.`,
+          400
+        )
+      );
+    }
 
-  // Save the order
+    orderItems.push({
+      name: cartItem.foodItem.name,
+      quantity: stripeItem.quantity,
+      image: cartItem.foodItem.images?.[0]?.url || "",
+      price:
+        stripeItem.price?.unit_amount != null
+          ? stripeItem.price.unit_amount / 100
+          : cartItem.foodItem.price,
+      fooditem: cartItem.foodItem._id,
+    });
+  }
+
+  // 9. Save the verified, paid order.
   const order = await Order.create({
     orderItems,
     deliveryInfo,
     paymentInfo: {
-      id: session.payment_intent,
+      id: paymentIntentId,
       status: session.payment_status,
     },
-    deliveryCharge: (session.shipping_cost?.amount_total || 0) / 100,
+    deliveryCharge:
+      (session.shipping_cost?.amount_total || 0) / 100,
     itemsPrice: (session.amount_subtotal || 0) / 100,
-    finalTotal: session.amount_total / 100,
+    finalTotal: (session.amount_total || 0) / 100,
     user: req.user._id,
     restaurant: cart.restaurant._id,
     paidAt: new Date(),
   });
 
-  // Clear the cart only after the order has been saved
-  await Cart.findOneAndDelete({ user: req.user._id });
+  console.log(
+    "ORDER SAVED SUCCESSFULLY:",
+    order._id.toString()
+  );
 
-  console.log("ORDER SAVED SUCCESSFULLY:", order._id.toString());
+  // 10. Clear the cart only after the order has been saved.
+  await Cart.findOneAndDelete({
+    user: req.user._id,
+  });
 
   return res.status(200).json({
     success: true,
@@ -146,64 +235,81 @@ exports.newOrder = catchAsyncErrors(async (req, res, next) => {
 // GET SINGLE ORDER
 // => /api/v1/eats/orders/:id
 // ==================================================
-exports.getSingleOrder = catchAsyncErrors(async (req, res, next) => {
-  const order = await Order.findById(req.params.id)
-    .populate("user", "name email")
-    .populate("restaurant")
-    .exec();
+exports.getSingleOrder = catchAsyncErrors(
+  async (req, res, next) => {
+    const order = await Order.findById(req.params.id)
+      .populate("user", "name email")
+      .populate("restaurant")
+      .exec();
 
-  if (!order) {
-    return next(
-      new ErrorHandler("No Order found with this ID", 404)
-    );
+    if (!order) {
+      return next(
+        new ErrorHandler(
+          "No Order found with this ID",
+          404
+        )
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      order,
+    });
   }
-
-  res.status(200).json({
-    success: true,
-    order,
-  });
-});
+);
 
 // ==================================================
 // GET LOGGED-IN USER ORDERS
 // => /api/v1/eats/orders/me/myOrders
 // ==================================================
-exports.myOrders = catchAsyncErrors(async (req, res, next) => {
-  const userId = new ObjectId(req.user.id);
+exports.myOrders = catchAsyncErrors(
+  async (req, res, next) => {
+    if (!req.user?._id) {
+      return next(
+        new ErrorHandler(
+          "Please login to access your orders",
+          401
+        )
+      );
+    }
 
-  const orders = await Order.find({
-    user: userId,
-  })
-    .populate("user", "name email")
-    .populate("restaurant")
-    .exec();
+    const orders = await Order.find({
+      user: req.user._id,
+    })
+      .populate("user", "name email")
+      .populate("restaurant")
+      .exec();
 
-  res.status(200).json({
-    success: true,
-    orders,
-  });
-});
+    return res.status(200).json({
+      success: true,
+      orders,
+    });
+  }
+);
 
 // ==================================================
 // GET ALL ORDERS - ADMIN
 // => /api/v1/eats/orders/admin/orders
 // ==================================================
-exports.allOrders = catchAsyncErrors(async (req, res, next) => {
-  const orders = await Order.find()
-    .populate("user", "name email")
-    .populate("restaurant", "name");
+exports.allOrders = catchAsyncErrors(
+  async (req, res, next) => {
+    const orders = await Order.find()
+      .populate("user", "name email")
+      .populate("restaurant", "name")
+      .exec();
 
-  const totalAmount = orders.reduce(
-    (total, order) => total + (order.finalTotal || 0),
-    0
-  );
+    const totalAmount = orders.reduce(
+      (total, order) => total + (order.finalTotal || 0),
+      0
+    );
 
-  res.status(200).json({
-    success: true,
-    totalAmount,
-    orders,
-  });
-});
+    return res.status(200).json({
+      success: true,
+      totalAmount,
+      orders,
+    });
+  }
+);
 
 // ==================================================
 // UPDATE ORDER STATUS - ADMIN
@@ -215,7 +321,10 @@ exports.updateOrderStatus = catchAsyncErrors(
 
     if (!status) {
       return next(
-        new ErrorHandler("Please provide order status", 400)
+        new ErrorHandler(
+          "Please provide order status",
+          400
+        )
       );
     }
 
@@ -228,7 +337,10 @@ exports.updateOrderStatus = catchAsyncErrors(
 
     if (!allowedStatuses.includes(status)) {
       return next(
-        new ErrorHandler("Invalid order status", 400)
+        new ErrorHandler(
+          "Invalid order status",
+          400
+        )
       );
     }
 
@@ -236,7 +348,10 @@ exports.updateOrderStatus = catchAsyncErrors(
 
     if (!order) {
       return next(
-        new ErrorHandler("Order not found with this ID", 404)
+        new ErrorHandler(
+          "Order not found with this ID",
+          404
+        )
       );
     }
 
@@ -244,7 +359,7 @@ exports.updateOrderStatus = catchAsyncErrors(
 
     await order.save();
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       order,
     });
