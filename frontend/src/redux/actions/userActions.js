@@ -29,10 +29,7 @@ export const login = (email, password) => async (dispatch) => {
 
     dispatch(loginSuccess(data.data.user));
   } catch (error) {
-    console.error(
-      "LOGIN ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("LOGIN ERROR:", error.response?.data || error.message);
 
     dispatch(
       loginFail(
@@ -49,15 +46,11 @@ export const register = (userData) => async (dispatch) => {
   try {
     dispatch(loginRequest());
 
-    const { data } = await api.post(
-      "/v1/users/signup",
-      userData,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const { data } = await api.post("/v1/users/signup", userData, {
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
 
     if (data.token) {
       localStorage.setItem("token", data.token);
@@ -65,10 +58,7 @@ export const register = (userData) => async (dispatch) => {
 
     dispatch(loginSuccess(data.data.user));
   } catch (error) {
-    console.error(
-      "REGISTER ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("REGISTER ERROR:", error.response?.data || error.message);
 
     dispatch(
       loginFail(
@@ -84,12 +74,10 @@ export const register = (userData) => async (dispatch) => {
 export const loadUser = () => async (dispatch) => {
   try {
     const { data } = await api.get("/v1/users/me");
+
     dispatch(loginSuccess(data.user));
   } catch (error) {
-    console.error(
-      "LOAD USER ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("LOAD USER ERROR:", error.response?.data || error.message);
 
     dispatch(
       loadUserFail(
@@ -106,17 +94,11 @@ export const updateProfile = (userData) => async (dispatch) => {
   try {
     dispatch(updateRequest());
 
-    const { data } = await api.put(
-      "/v1/users/me/update",
-      userData
-    );
+    const { data } = await api.put("/v1/users/me/update", userData);
 
     dispatch(updateSuccess(data.success));
   } catch (error) {
-    console.error(
-      "PROFILE UPDATE ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("PROFILE UPDATE ERROR:", error.response?.data || error.message);
 
     dispatch(
       updateFail(
@@ -136,10 +118,7 @@ export const logout = () => async (dispatch) => {
     localStorage.removeItem("token");
     dispatch(logoutSuccess());
   } catch (error) {
-    console.error(
-      "LOGOUT ERROR:",
-      error.response?.data || error.message
-    );
+    console.error("LOGOUT ERROR:", error.response?.data || error.message);
 
     dispatch(
       logoutFail(

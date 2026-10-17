@@ -19,7 +19,6 @@ const OrderSuccess = () => {
   const searchParams = new URLSearchParams(location.search);
   const sessionId = searchParams.get("session_id");
 
-  // Diagnostic information for troubleshooting.
   console.log("Current success URL:", window.location.href);
   console.log("Stripe session ID:", sessionId);
 
