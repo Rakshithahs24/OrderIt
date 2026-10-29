@@ -16,20 +16,21 @@ export const fetchCartItems = () => async (dispatch) => {
 
     const { data } = await api.get("/v1/eats/cart/get-cart");
 
+    // Backend returns the cart under data.data
     dispatch(cartSuccess(data.data));
-    console.log("CART API:", data.data);
+    return { success: true, cart: data.data };
   } catch (error) {
-    dispatch(
-      cartFail(
-        error.response?.data?.message || "Failed to fetch cart"
-      )
-    );
+    const message =
+      error.response?.data?.message || "Failed to fetch cart";
+
+    dispatch(cartFail(message));
+    return { success: false, message };
   }
 };
 
-// Add item to cart
+// Add an item to the cart
 export const addItemToCart =
-  (foodItemId, restaurantId, quantity) =>
+  (foodItemId, restaurantId, quantity = 1) =>
   async (dispatch, getState) => {
     try {
       dispatch(cartRequest());
@@ -37,8 +38,9 @@ export const addItemToCart =
       const { user } = getState().user;
 
       if (!user?._id) {
-        dispatch(cartFail("Please log in to add items to your cart"));
-        return;
+        const message = "Please log in to add items to your cart";
+        dispatch(cartFail(message));
+        return { success: false, message };
       }
 
       const { data } = await api.post("/v1/eats/cart/add-to-cart", {
@@ -48,25 +50,33 @@ export const addItemToCart =
         quantity,
       });
 
+      if (!data.cart) {
+        throw new Error("The server did not return the updated cart");
+      }
+
       dispatch(cartSuccess(data.cart));
+      return { success: true, cart: data.cart };
     } catch (error) {
-      dispatch(
-        cartFail(
-          error.response?.data?.message || "Failed to add item to cart"
-        )
-      );
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to add item to cart";
+
+      dispatch(cartFail(message));
+      return { success: false, message };
     }
   };
 
-// Update cart item quantity
+// Update an item's quantity
 export const updateCartQuantity =
   (foodItemId, quantity) => async (dispatch, getState) => {
     try {
       const { user } = getState().user;
 
       if (!user?._id) {
-        dispatch(cartFail("Please log in to update your cart"));
-        return;
+        const message = "Please log in to update your cart";
+        dispatch(cartFail(message));
+        return { success: false, message };
       }
 
       const { data } = await api.post("/v1/eats/cart/update-cart-item", {
@@ -75,26 +85,33 @@ export const updateCartQuantity =
         quantity,
       });
 
+      if (!data.cart) {
+        throw new Error("The server did not return the updated cart");
+      }
+
       dispatch(updateCartSuccess(data.cart));
+      return { success: true, cart: data.cart };
     } catch (error) {
-      dispatch(
-        cartFail(
-          error.response?.data?.message ||
-            "Failed to update cart quantity"
-        )
-      );
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to update cart quantity";
+
+      dispatch(cartFail(message));
+      return { success: false, message };
     }
   };
 
-// Remove item from cart
+// Remove an item from the cart
 export const removeItemFromCart =
   (foodItemId) => async (dispatch, getState) => {
     try {
       const { user } = getState().user;
 
       if (!user?._id) {
-        dispatch(cartFail("Please log in to remove cart items"));
-        return;
+        const message = "Please log in to remove cart items";
+        dispatch(cartFail(message));
+        return { success: false, message };
       }
 
       const { data } = await api.delete(
@@ -108,22 +125,26 @@ export const removeItemFromCart =
       );
 
       if (data.cart) {
-        // Backend returned the updated cart.
         dispatch(removeCartSuccess(data.cart));
-      } else {
-        // Backend deleted the cart because the last item was removed.
-        dispatch(
-          cartSuccess({
-            items: [],
-            restaurant: null,
-          })
-        );
+        return { success: true, cart: data.cart };
       }
-    } catch (error) {
+
+      // The backend deletes the cart after its final item is removed.
       dispatch(
-        cartFail(
-          error.response?.data?.message || "Failed to remove cart item"
-        )
+        cartSuccess({
+          items: [],
+          restaurant: {},
+        })
       );
+
+      return { success: true, cart: { items: [], restaurant: {} } };
+    } catch (error) {
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to remove cart item";
+
+      dispatch(cartFail(message));
+      return { success: false, message };
     }
   };

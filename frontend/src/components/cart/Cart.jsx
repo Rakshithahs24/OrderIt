@@ -1,3 +1,4 @@
+import BackButton from "../BackButton";
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -51,6 +52,7 @@ const Cart = () => {
 
   return (
     <>
+     <BackButton label="Continue Shopping" to="/" />
       {cartItems.length === 0 ? (
         <h2 className="mt-5">Your Cart is empty</h2>
       ) : (

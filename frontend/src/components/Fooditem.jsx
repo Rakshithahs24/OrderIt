@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faIndianRupeeSign } from "@fortawesome/free-solid-svg-icons";
@@ -12,68 +13,72 @@ import axios from "axios";
 import { getMenus } from "../redux/actions/menuActions";
 
 const Fooditem = ({ fooditem, restaurant }) => {
-  const [quantity, setQuantity] = useState(1);
-  const [showButtons, setShowButtons] = useState(false);
+  const [busy, setBusy] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  //state (Redux Toolkit user slice)
   const { user } = useSelector((state) => state.user);
   const isAuthenticated = !!user;
-
-  //cart from slice
   const { cartItems } = useSelector((state) => state.cart);
 
-  useEffect(() => {
-    const cartItem = cartItems.find(
-      (item) => item.foodItem._id === fooditem._id
-    );
+  const foodId = String(fooditem._id);
 
-    if (cartItem) {
-      setQuantity(cartItem.quantity);
-      setShowButtons(true);
-    } else {
-      setQuantity(1);
-      setShowButtons(false);
-    }
-  }, [cartItems, fooditem]);
+  const cartItem = cartItems.find((item) => {
+    const itemId =
+      typeof item.foodItem === "object"
+        ? item.foodItem?._id
+        : item.foodItem;
 
-  // ➖ decrease
-  const decreaseQty = () => {
-    if (quantity > 1) {
-      const newQuantity = quantity - 1;
-      setQuantity(newQuantity);
+    return String(itemId) === foodId;
+  });
 
-      //params
-      dispatch(updateCartQuantity(fooditem._id, newQuantity));
-    } else {
-      setQuantity(0);
-      setShowButtons(false);
-      dispatch(removeItemFromCart(fooditem._id));
+  const quantity = cartItem?.quantity || 0;
+  const showButtons = quantity > 0;
+
+  const runCartAction = async (action) => {
+    if (busy) return;
+
+    setBusy(true);
+    try {
+      await dispatch(action);
+    } finally {
+      setBusy(false);
     }
   };
 
-  // ➕ increase
-  const increaseQty = () => {
-    if (quantity < fooditem.stock) {
-      const newQuantity = quantity + 1;
-      setQuantity(newQuantity);
-
-      dispatch(updateCartQuantity(fooditem._id, newQuantity));
-    } else {
-      alert("Exceeded stock limit");
-    }
-  };
-
-  //add to cart
-  const addToCartHandler = () => {
+  const addToCartHandler = async () => {
     if (!isAuthenticated) {
-      return navigate("/users/login");
+      navigate("/users/login");
+      return;
     }
 
-    dispatch(addItemToCart(fooditem._id, restaurant, quantity));
-    setShowButtons(true);
+    await runCartAction(
+      addItemToCart(fooditem._id, restaurant, 1)
+    );
+  };
+
+  const increaseQty = async () => {
+    if (quantity >= fooditem.stock) {
+      alert("Exceeded stock limit");
+      return;
+    }
+
+    await runCartAction(
+      updateCartQuantity(fooditem._id, quantity + 1)
+    );
+  };
+
+  const decreaseQty = async () => {
+    if (quantity > 1) {
+      await runCartAction(
+        updateCartQuantity(fooditem._id, quantity - 1)
+      );
+    } else if (quantity === 1) {
+      await runCartAction(
+        removeItemFromCart(fooditem._id)
+      );
+    }
   };
 
   return (
@@ -95,41 +100,50 @@ const Fooditem = ({ fooditem, restaurant }) => {
             {fooditem.price}
           </p>
 
-          {!showButtons ? (
-          
-            (!isAuthenticated || user?.role !== "admin") && (
+          {user?.role !== "admin" && (
+            !showButtons ? (
               <button
-              id="cart_btn"
-              className="btn btn-primary ml-4"
-              disabled={fooditem.stock === 0}
-              onClick={addToCartHandler}
-            >
-              Add to Cart
-            </button>
+                id={`cart_btn_${foodId}`}
+                className="btn btn-primary ml-4"
+                disabled={busy || fooditem.stock === 0}
+                onClick={addToCartHandler}
+              >
+                {busy ? "Adding..." : "Add to Cart"}
+              </button>
+            ) : (
+              <div className="stockCounter d-inline">
+                <button
+                  type="button"
+                  className="btn btn-danger minus"
+                  disabled={busy}
+                  onClick={decreaseQty}
+                >
+                  −
+                </button>
+
+                <input
+                  type="number"
+                  className="form-control count d-inline"
+                  value={quantity}
+                  readOnly
+                />
+
+                <button
+                  type="button"
+                  className="btn btn-primary plus"
+                  disabled={busy}
+                  onClick={increaseQty}
+                >
+                  +
+                </button>
+              </div>
             )
-          ) : (
-            <div className="stockCounter d-inline">
-              <span className="btn btn-danger minus" onClick={decreaseQty}>
-                -
-              </span>
-
-              <input
-                type="number"
-                className="form-control count d-inline"
-                value={quantity}
-                readOnly
-              />
-
-              <span className="btn btn-primary plus" onClick={increaseQty}>
-                +
-              </span>
-            </div>
           )}
 
           <hr />
 
           <p>
-            Status:
+            Status:{" "}
             <span
               className={
                 fooditem.stock > 0 ? "greenColor" : "redColor"
@@ -139,7 +153,6 @@ const Fooditem = ({ fooditem, restaurant }) => {
             </span>
           </p>
 
-          {/* ADMIN DELETE */}
           {isAuthenticated && user?.role === "admin" && (
             <button
               className="btn btn-danger btn-sm mt-2"
@@ -147,9 +160,10 @@ const Fooditem = ({ fooditem, restaurant }) => {
                 if (!window.confirm("Delete this food item?")) return;
 
                 try {
-                  await axios.delete(`/api/v1/eats/item/${fooditem._id}`, {
-                    withCredentials: true,
-                  });
+                  await axios.delete(
+                    `/api/v1/eats/item/${fooditem._id}`,
+                    { withCredentials: true }
+                  );
 
                   if (restaurant) {
                     dispatch(getMenus(restaurant));
@@ -157,14 +171,15 @@ const Fooditem = ({ fooditem, restaurant }) => {
                 } catch (err) {
                   console.error(err);
                   alert(
-                    err.response?.data?.message || "Unable to delete item"
+                    err.response?.data?.message ||
+                    "Unable to delete item"
                   );
                 }
               }}
             >
               Delete
             </button>
-          )} 
+          )}
         </div>
       </div>
     </div>

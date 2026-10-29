@@ -1,3 +1,4 @@
+import BackButton from "./BackButton";
 import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useParams } from "react-router-dom";
@@ -142,6 +143,10 @@ const [foodFilter, setFoodFilter] = useState("all");
 
   return (
     <div>
+      <BackButton
+      label="Back to Restaurants"
+      to="/"
+    />
       {loading ? (
         <p>Loading menus...</p>
       ) : error ? (

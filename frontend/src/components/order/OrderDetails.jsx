@@ -1,4 +1,4 @@
-
+import BackButton from "../BackButton";
 import React, { Fragment, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -69,6 +69,7 @@ const OrderDetails = () => {
 
   return (
     <Fragment>
+       <BackButton label="Back to My Orders" to="/eats/orders/me/myOrders" />
       <div className="row d-flex justify-content-between orderdetails">
         <div className="col-12 col-lg-8 mt-1 order-details">
           <h1 className="my-5">Order # {_id}</h1>

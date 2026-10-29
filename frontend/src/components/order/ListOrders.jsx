@@ -1,4 +1,4 @@
-
+import BackButton from "../BackButton";
 import React, { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -95,6 +95,7 @@ const ListOrders = () => {
 
   return (
     <div className="list-orders-container">
+       <BackButton label="Back to Restaurants" to="/" />
       <h1 className="orders-title">My Orders</h1>
 
       {loading ? (
