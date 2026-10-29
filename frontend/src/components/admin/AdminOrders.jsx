@@ -1,4 +1,6 @@
+
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../utils/api";
 
 const AdminOrders = () => {
@@ -6,6 +8,8 @@ const AdminOrders = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingOrder, setUpdatingOrder] = useState(null);
+
+  const navigate = useNavigate();
 
   // Fetch all orders
   const fetchOrders = async () => {
@@ -41,40 +45,35 @@ const AdminOrders = () => {
 
       const { data } = await api.put(
         `/v1/eats/orders/admin/orders/${orderId}`,
-        {
-          status,
-        }
+        { status }
       );
 
-      // Update the order in the current page
       setOrders((previousOrders) =>
         previousOrders.map((order) =>
           order._id === orderId
             ? {
                 ...order,
-                orderStatus: data.order.orderStatus,
+                orderStatus:
+                  data.order?.orderStatus || status,
               }
             : order
         )
       );
-
-      console.log("Order status updated successfully");
     } catch (err) {
-      console.error(
-        "Failed to update order status:",
-        err
-      );
+      console.error("Failed to update order status:", err);
 
       alert(
         err.response?.data?.message ||
           "Failed to update order status."
       );
+
+      // Reload the server's current order data
+      await fetchOrders();
     } finally {
       setUpdatingOrder(null);
     }
   };
 
-  // Loading
   if (loading) {
     return (
       <div className="container p-4">
@@ -84,15 +83,18 @@ const AdminOrders = () => {
     );
   }
 
-  // Error
   if (error) {
     return (
       <div className="container p-4">
         <h1>Orders</h1>
+        <div className="alert alert-danger">{error}</div>
 
-        <div className="alert alert-danger">
-          {error}
-        </div>
+        <button
+          className="btn btn-primary"
+          onClick={fetchOrders}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -117,54 +119,47 @@ const AdminOrders = () => {
                 <th>Amount</th>
                 <th>Payment</th>
                 <th>Status</th>
+                <th>Details</th>
               </tr>
             </thead>
 
             <tbody>
               {orders.map((order) => (
                 <tr key={order._id}>
-                  {/* Order ID */}
                   <td>{order._id}</td>
 
-                  {/* Customer */}
                   <td>
                     {order.user?.name || "N/A"}
                   </td>
 
-                  {/* Restaurant */}
                   <td>
                     {order.restaurant?.name || "N/A"}
                   </td>
 
-                  {/* Food */}
                   <td>
-                    {order.orderItems?.map((item) => (
-                      <div key={item._id}>
-                        {item.name} × {item.quantity}
-                      </div>
-                    ))}
+                    {order.orderItems?.length ? (
+                      order.orderItems.map((item, index) => (
+                        <div key={item._id || index}>
+                          {item.name || "Food item"} ×{" "}
+                          {item.quantity}
+                        </div>
+                      ))
+                    ) : (
+                      "No items"
+                    )}
                   </td>
 
-                  {/* Amount */}
-                  <td>
-                    ₹{order.finalTotal}
-                  </td>
+                  <td>₹{order.finalTotal ?? 0}</td>
 
-                  {/* Payment */}
                   <td>
                     {order.paymentInfo?.status || "N/A"}
                   </td>
 
-                  {/* Order Status */}
                   <td>
                     <select
                       className="form-select"
-                      value={
-                        order.orderStatus || "Processing"
-                      }
-                      disabled={
-                        updatingOrder === order._id
-                      }
+                      value={order.orderStatus || "Processing"}
+                      disabled={updatingOrder === order._id}
                       onChange={(e) =>
                         updateStatus(
                           order._id,
@@ -175,15 +170,12 @@ const AdminOrders = () => {
                       <option value="Processing">
                         Processing
                       </option>
-
                       <option value="Shipped">
                         Shipped
                       </option>
-
                       <option value="Delivered">
                         Delivered
                       </option>
-
                       <option value="Cancelled">
                         Cancelled
                       </option>
@@ -194,6 +186,18 @@ const AdminOrders = () => {
                         Updating...
                       </small>
                     )}
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() =>
+                        navigate(`/eats/orders/${order._id}`)
+                      }
+                    >
+                      View Details
+                    </button>
                   </td>
                 </tr>
               ))}
